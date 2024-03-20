@@ -24,6 +24,5 @@ Finally, self-optimization process:
 python agent_3_validator.py
 ```
 
-### Importance
-
-Since THUDM's Humaneval-X does not contains entry_point for python language. So you can directly use 
+Since MBPP's format have few difference with HumanEval.
+So for agent_1 and agent_3 we provide another files for execution. While agent_2 is same as HumanEval

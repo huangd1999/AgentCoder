@@ -7,25 +7,39 @@ import openai
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 from process_mx_agent3_generation import preprocess_data
+from process_mx_agent2_test_case import preprocess_data as preprocess_data_test_case
 
 # Setting API parameters
 openai.api_base = "https://api.aiohub.org/v1"
-openai.api_key = 'API'
+openai.api_key = 'API_KEY'
 
 
 
 # Function to fetch completion
 def fetch_completion(data_entry, model,lg):
+    lg = "py"
+    if "passed" in data_entry.keys() and data_entry["passed"] == True:
+        return data_entry
     prompt = data_entry["prompt"]
+    test_case = data_entry["test_list"]
+    code = data_entry["completion"]
+    tests = ""
+    for test in test_case:
+        tests+="\n"+test
     text = f"""
 **Role**: You are a software programmer.
 
-**Task**: As a programmer, you are required to complete the function. Use a Chain-of-Thought approach to break down the problem, create pseudocode, and then write the code in Python language. Ensure that your code is efficient, readable, and well-commented.
+**Task**: You are an expert Python programmer, and here is your task:
 
-**Input Code Snippet**:
+**Task**:
 ```python
 {prompt}
 ```
+Your code should pass these tests:
+```python
+{tests}
+```
+Please only return the code in ```py\n# [BEGIN]\n# [CODE]\n # [DONE]\n```.
 
 **Instructions**:
 1. **Understand and Clarify**: Make sure you understand the task. 
@@ -35,10 +49,11 @@ def fetch_completion(data_entry, model,lg):
 """
     try:
         completions = openai.ChatCompletion.create(
-            model=model,
+            # model="ft:gpt-3.5-turbo-06
+            model = model,
             stream=False,
             messages=[
-        {"role": "system", "content": "You are a software programmer."},
+        {"role": "system", "content": "You are a code developer."},
         {"role": "user", "content":text},
             ],
             request_timeout=100,
@@ -47,24 +62,24 @@ def fetch_completion(data_entry, model,lg):
         data_entry = preprocess_data(data_entry,lg)
         return data_entry
     except Exception as e:
-        print(e)
+        print(repr(e))
         data_entry["completion"] = ""
         return data_entry
 
 def fix_bug(data_entry, model,lg,preprocess_data = preprocess_data):
-    if data_entry["passed"] == True:
+    if "passed" in data_entry.keys() and data_entry["passed"] == True:
         return data_entry
     else:
         gpt_prompt = (
             "Please re-completion the code to fix the error message. "+
             f"\nHere is the previous version:\n```{lg}\n" + 
             data_entry['completion'] + f"\n```\nWhen we use this test cases: ```{lg}\n"+data_entry["test_case"]+f"\n``` to evaluate the code. It raise the error:\n```{lg}\n" + data_entry["result"] +
-            f"\n```\nPlease fix the bug by follow the error information and only return {lg} code. You do not need return the test cases" + 
-            f"The re-completion code should in triple backticks format(i.e., in ```{lg} ```)."
+            f"\n```\nPlease fix the bug and return the code. The re-completion code should in triple backticks format(i.e., in ```{lg} ```)."
         )
         try:
             completions = openai.ChatCompletion.create(
-                model=model,
+                # model="ft:gpt-3.5-turbo-0613:pixia::8BFrwPVo",
+                model = model,
                 stream=False,
                 messages=[
             {"role": "system", "content": "You are a code developer assistant."},
@@ -73,7 +88,7 @@ def fix_bug(data_entry, model,lg,preprocess_data = preprocess_data):
                 request_timeout=100,
             )
             data_entry["completion"] = completions.choices[0]["message"]["content"]
-            data_entry = preprocess_data(data_entry,lg)
+            data_entry = preprocess_data(data_entry,"py")
         except Exception as e:
             print(repr(e))
     return data_entry
@@ -81,27 +96,47 @@ def fix_bug(data_entry, model,lg,preprocess_data = preprocess_data):
 def call_fix_bug(dataset, model,lg):
     print("Fixing bug...")
     with ThreadPoolExecutor() as executor:
-        future_to_entry = {executor.submit(fix_bug, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
-        for future in tqdm(concurrent.futures.as_completed(future_to_entry)):
-            entry = future_to_entry[future]
-            try:
-                updated_entry = future.result()
-                idx = dataset.index(entry)
-                dataset[idx] = updated_entry
-            except Exception as e:
-                print(repr(e))
+        # with ThreadPoolExecutor() as executor:
+            future_to_entry = {executor.submit(fetch_completion, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
+            for future in tqdm(concurrent.futures.as_completed(future_to_entry)):
+                entry = future_to_entry[future]
+                try:
+                    updated_entry = future.result()
+                    idx = dataset.index(entry)
+                    dataset[idx] = updated_entry
+                except Exception as e:
+                    print(repr(e))
     return dataset
+
+def call_completion(dataset, model,lg):
+    print("Fixing bug...")
+    with ThreadPoolExecutor() as executor:
+        # with ThreadPoolExecutor() as executor:
+            future_to_entry = {executor.submit(fetch_completion, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
+            for future in tqdm(concurrent.futures.as_completed(future_to_entry)):
+                entry = future_to_entry[future]
+                try:
+                    updated_entry = future.result()
+                    idx = dataset.index(entry)
+                    dataset[idx] = updated_entry
+                except Exception as e:
+                    print(repr(e))
+    return dataset
+
+
 
 if __name__ == "__main__":
     model_list = ["gpt-3.5-turbo"]
-    language = ["python"]
+    language = ["py"]
     for model in model_list:
         for lg in language:
             from datasets import load_dataset
-            dataset = load_dataset("openai_humaneval",split="test")
+            dataset = load_dataset("mbpp",name="sanitized",split="test")
             dataset = [entry for entry in dataset]
-            with ThreadPoolExecutor() as executor:
-                future_to_entry = {executor.submit(fetch_completion, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
+            with open(path, "r") as f:
+                dataset = json.load(f)
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                future_to_entry = {executor.submit(single_agent_code_generation_tests_generation, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
                 for future in tqdm(concurrent.futures.as_completed(future_to_entry)):
                     entry = future_to_entry[future]
                     try:
@@ -110,5 +145,6 @@ if __name__ == "__main__":
                         dataset[idx] = updated_entry
                     except Exception as e:
                         print(repr(e))
-            with open(f"./dataset/{model}_{lg}.json", "w") as f:
+
+            with open(f"./dataset/{model}_mbpp.json", "w") as f:
                 json.dump(dataset, f, indent=4)

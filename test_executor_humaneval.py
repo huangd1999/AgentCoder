@@ -4,7 +4,6 @@ import json
 from typing import Optional, Callable, Dict
 import ast
 import doctest
-import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import inspect
 import numpy as np
@@ -17,9 +16,8 @@ import os
 import multiprocessing
 import platform
 import signal
-from assistant_agent_1_code_generation import call_self_refine_code_generation
 from tqdm import tqdm
-from agent_1_code_generation import fix_bug,call_fix_bug
+from programmer_humaneval import fix_bug,call_fix_bug
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile
@@ -207,118 +205,6 @@ def run_tests_orginal(i,problem):
         problem["result"] = "Error in executing the code: " + str(exc)
         # print(problem["result"])
         print(problem["task_id"],problem["result"])
-
-
-import io
-import sys
-import doctest
-
-
-def run_doctest(i, problem, model):
-    # Presuming global variables are necessary; consider avoiding global state if possible
-    global correct_doctest, correct_before_doctest, correct_after_doctest
-    task = problem.copy()
-
-    if f"def {problem['entry_point']}" in problem['completion']:
-        complete_function_code = (
-            problem['completion'] + "\n" +
-            problem["test"] + "\n" +
-            f"check({problem['entry_point']})"
-        )
-
-    else:
-        complete_function_code = (
-            problem["prompt"] + "\n" +
-            problem['completion'] + "\n" +
-            problem["test"] + "\n" +
-            f"check({problem['entry_point']})"
-        )
-
-    # First execution attempt
-    try:
-        exec(complete_function_code, globals())
-        correct_before_doctest += 1
-    except:
-        pass
-
-    refine_times = 0
-    while refine_times < 1:
-        if f"def {problem['entry_point']}" in problem['completion']:
-            code_function = f"{problem['completion']}\nimport doctest\ndoctest.run_docstring_examples({problem['entry_point']}, globals())"
-        else:
-            code_function = f"{problem['prompt']}\n{problem['completion']}\nimport doctest\ndoctest.run_docstring_examples({problem['entry_point']}, globals())"
-        result = "" 
-        output = io.StringIO()  # Create a new StringIO instance each iteration
-        sys.stdout = output
-        try:
-            with time_limit(2.0):
-                exec(code_function)
-            result = output.getvalue()
-        except Exception as e:  # Consider catching more specific exceptions
-            result = f"Failed example since {e}"
-        finally:
-            sys.stdout = sys.__stdout__  # Reset stdout
-            output.close()  # Close the old StringIO instance
-        if "Failed example" in result:
-            print("task_id",problem["task_id"])
-            print(result)
-            print(code_function)
-            # print("====================")
-            # print(problem["task_id"])
-            # print(problem["completion"])
-            # print("====================")
-            if f"def {problem['entry_point']}" in problem['completion']:
-                problem["prompt"] = (
-                    "Please re-completion the code to fix the error message. "+
-                    "\nHere is the previous version:\n" + 
-                    problem['completion'] + "\nSince it raise error when we use doctest to evaluate the code:\n" + result +
-                    "Please fix the bug by follow the error information and only return the code." + 
-                    "Please also do not change the doctest's test cases." + 
-                    "The re-completion code should in triple backticks format(i.e., in ``` ```) " + 
-                    task["prompt"]
-                )
-            else:
-                problem["prompt"] = (
-                    "Please re-completion the code to fix the error message. "+
-                    "\nHere is the previous version:\n" + problem["prompt"] + "\n" +
-                    problem['completion'] + "\nSince it raise error when we use doctest to evaluate the code:\n" + result +
-                    "Please fix the bug by follow the error information and only return the code." + 
-                    "Please also do not change the doctest's test cases." + 
-                    "The re-completion code should in triple backticks format(i.e., in ``` ```) " + 
-                    task["prompt"]
-                )
-            problem = call_self_refine_code_generation(problem, model)
-            # print(problem["completion"])
-            problem = preprocess_data(problem,"python")
-            refine_times += 1
-            print("refine_times", refine_times)
-        else:
-            correct_doctest += 1
-            break
-
-
-
-    if f"def {problem['entry_point']}" in problem['completion']:
-        complete_function_code = (
-            problem['completion'] + "\n" +
-            problem["test"] + "\n" +
-            f"check({problem['entry_point']})"
-        )
-
-    else:
-        complete_function_code = (
-            problem["prompt"] + "\n" +
-            problem['completion'] + "\n" +
-            problem["test"] + "\n" +
-            f"check({problem['entry_point']})"
-        )
-
-
-    try:
-        exec(complete_function_code)
-        correct_after_doctest += 1
-    except Exception as e:
-        pass
 
                 
     

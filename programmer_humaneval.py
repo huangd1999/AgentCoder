@@ -6,13 +6,18 @@ import copy
 import openai
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
-from process_mx_agent3_generation import preprocess_data
 
 # Setting API parameters
 openai.api_base = "https://api.aiohub.org/v1"
 openai.api_key = 'API'
 
-
+def preprocess_data(data,lg):
+    if f"```{lg}" in data["completion"]:
+        data["completion"] = data["completion"][data["completion"].find(f"```{lg}")+len(f"```{lg}"):]
+        data["completion"] = data["completion"][:data["completion"].find("```")]
+    else:
+        print(data["task_id"])
+    return data
 
 # Function to fetch completion
 def fetch_completion(data_entry, model,lg):

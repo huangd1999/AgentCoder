@@ -140,7 +140,7 @@ if __name__ == "__main__":
             with open(path, "r") as f:
                 dataset = json.load(f)
             with ThreadPoolExecutor(max_workers=20) as executor:
-                future_to_entry = {executor.submit(single_agent_code_generation_tests_generation, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
+                future_to_entry = {executor.submit(fetch_completion, copy.deepcopy(entry), model, lg): entry for entry in tqdm(dataset)}
                 for future in tqdm(concurrent.futures.as_completed(future_to_entry)):
                     entry = future_to_entry[future]
                     try:

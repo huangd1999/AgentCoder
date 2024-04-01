@@ -17,7 +17,7 @@ import multiprocessing
 import platform
 import signal
 from tqdm import tqdm
-from mbpp_agent_1 import fix_bug,call_fix_bug,call_completion,single_agent_helper
+from programmer_mbpp import fix_bug,call_fix_bug,call_completion,single_agent_helper
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile

@@ -188,19 +188,34 @@ model_list = ["gpt-3.5-turbo"]
 # language = ["js", "java", "go", "cpp","python"]
 language = ["python"]
 
+# # Multi-Agent collaboration improves code snippets' correctness score.
+
+# for model_name in model_list:
+#     for lg in language:
+#         path = f"./dataset/zero_shot_{model_name}_mbpp.json"
+#         with open(path, "r") as f:
+#             dataset = json.load(f)
+#         epoch = 5
+#         for current_epoch in range(epoch):
+#             print(lg,current_epoch)
+#             test_report(dataset,lg)
+#             test_agent(dataset,lg)
+#             dataset = call_completion(dataset,model_name,lg)
+#             with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
+#                 json.dump(dataset, f, indent=4)
+#         with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
+#             json.dump(dataset, f, indent=4)
+
+# calculate pass@1
 for model_name in model_list:
     for lg in language:
-        path = f"./dataset/zero_shot_{model_name}_mbpp.json"
-        with open(path, "r") as f:
-            dataset = json.load(f)
         epoch = 5
         for current_epoch in range(epoch):
+            path = f"./dataset/zero_shot_{model_name}_mbpp.json"
+            with open(path, "r") as f:
+                dataset = json.load(f)
             print(lg,current_epoch)
             test_report(dataset,lg)
             test_agent(dataset,lg)
-            dataset = call_completion(dataset,model_name,lg)
-            with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
-                json.dump(dataset, f, indent=4)
-        with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
-            json.dump(dataset, f, indent=4)
+
 

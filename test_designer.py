@@ -18,6 +18,7 @@ def preprocess_data(data,lg):
         data["test_case"] = data["test_case"][:data["test_case"].find("```")]
     else:
         print(data["task_id"])
+    return data
 
 # Function to fetch completion
 def fetch_completion(data_entry, model, lg):

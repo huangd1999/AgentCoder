@@ -17,7 +17,7 @@ import multiprocessing
 import platform
 import signal
 from tqdm import tqdm
-from programmer_mbpp import fix_bug,call_fix_bug,call_completion,single_agent_helper
+from mbpp_agent_1 import fix_bug,call_fix_bug,call_completion,single_agent_helper
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile
@@ -187,47 +187,20 @@ def test_canonical_solution(dataset,lg):
 model_list = ["gpt-3.5-turbo"]
 # language = ["js", "java", "go", "cpp","python"]
 language = ["python"]
-# language = ["go"]
+
 for model_name in model_list:
-    print(f"=================={model_name}================")
     for lg in language:
+        path = f"./dataset/zero_shot_{model_name}_mbpp.json"
+        with open(path, "r") as f:
+            dataset = json.load(f)
         epoch = 5
         for current_epoch in range(epoch):
-            path = f"./dataset/gpt-4_{current_epoch}_mbpp.json"
-            with open(path, "r") as f:
-                dataset = json.load(f)
-                # dataset = [json.loads(line) for line in f.readlines()]
-            # test_canonical_solution(dataset,lg)s
-            with open("./CodeGenEvaluation/MBPP_ET.jsonl", "r") as f:
-                dataset_et = [json.loads(line) for line in f.readlines()]
+            print(lg,current_epoch)
             test_report(dataset,lg)
-            et_idx_dict = {}
-            for i in range(len(dataset_et)):
-                et_idx_dict[dataset_et[i]["task_id"]] = i
-            for i in range(len(dataset)):
-                dataset[i]["test_list"] = dataset_et[et_idx_dict[dataset[i]["task_id"]]]["test_list"]
-            test_report(dataset,lg)
-            
-
-
-
-
-
-# # model_list = ["gpt-4-1106-preview"]
-# # language = ["python"]
-# for model_name in model_list:
-#     for lg in language:
-#         path = "./dataset/single_agent_gpt-3.5-turbo_mbpp.json"
-#         with open(path, "r") as f:
-#             dataset = json.load(f)
-#         epoch = 5
-#         for current_epoch in range(epoch):
-#             print(lg,current_epoch)
-#             test_report(dataset,lg)
-#             test_agent(dataset,lg)
-#             dataset = single_agent_helper(dataset,model_name,lg)
-#             with open(f"./dataset/single_agent_{model_name}_{current_epoch}_mbpp.json", "w") as f:
-#                 json.dump(dataset, f, indent=4)
-#         with open(f"./dataset/single_agent_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
-#             json.dump(dataset, f, indent=4)
+            test_agent(dataset,lg)
+            dataset = call_completion(dataset,model_name,lg)
+            with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
+                json.dump(dataset, f, indent=4)
+        with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
+            json.dump(dataset, f, indent=4)
 

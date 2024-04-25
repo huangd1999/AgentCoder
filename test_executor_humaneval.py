@@ -17,7 +17,8 @@ import multiprocessing
 import platform
 import signal
 from tqdm import tqdm
-from programmer_humaneval import fix_bug,call_fix_bug
+from programmer_humaneval import call_fetch_completion_helper
+from test_designer import call_fetch_test_completion_helper
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile
@@ -89,18 +90,11 @@ def process_humaneval_test(sample, problems, example_test=False,language=languag
     # Pre-process for different languages
     if language == "python":
         code_ = []
-        # for line in code.split("\n"):
-        #     if (len(line.strip()) > 0 and line[0] != ' ' and line[0] != '\t'):
-        #         break
-        #     code_.append(line)
-        # code = "\n".join(code_)
         test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
         if f"class sample['entry_point']" in code:
             test_string = test_setup + code + "\n" + test + "\n" + f"check({sample['entry_point']})"
         else:
             test_string = test_setup + prompt + code + "\n" + test + "\n" + f"check({sample['entry_point']})"
-        # test_string = prompt+code+"\n"+sample["test_case"]
-        # test_string = sample["completion"]+"\n"+sample["test_case"]
     elif language == "cpp":
         test_set_up = ""
         for s in IMPORT_HELPER["cpp"]:
@@ -285,33 +279,121 @@ def run_tests_fuzzer_canonical_solution(i,problem):
 
 def test_report(dataset,lg):
     correct = 0
+    test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
     for i in tqdm(range(len(dataset))):
-        dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=False)
-        result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
-        if result["passed"]==True:
-            correct+=1
+        try:
+            with swallow_io():
+                with time_limit(2.0):
+                    exec(test_setup + "\n" + dataset[i]["completion"] + "\n" + dataset[i]["test"] + "\n" + f"check({dataset[i]['entry_point']})")
+                correct+=1
+        except Exception as exc:
+            pass
     print("==============Start Report Testing==============")
-    print("test_report",correct)
+    print(f"test_report: {(correct/len(dataset)*100):.1f}")
+
+
+
+    #     dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=False)
+    #     result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
+    #     if result["passed"]==True:
+    #         correct+=1
+    # print("==============Start Report Testing==============")
+    # print("test_report",correct)
     
-def test_agent(dataset,lg):
-    correct = 0
-    for i in tqdm(range(len(dataset))):
-        if "passed" in dataset[i].keys() and dataset[i]["passed"]==True:
-            correct+=1
-            continue
-        dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=True)
-        result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
-        if result["passed"]==True:
-            correct+=1
-        dataset[i]["result"] = result["result"]
-        dataset[i]["passed"] = result["passed"]
-    print("============Start Agent Testing=================")
-    print("test_report",correct)
+# def test_agent(dataset,lg):
+    # correct = 0
+    # test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
+    # total_correct = 0
+    # _for_completion = 0
+    # for i in tqdm(range(len(dataset))):
+        
+    #     #dataset[i]["completion"] contains five different solutions, and dataset[i]["test_case"] also have five different test cases
+    #     # we want to use ensemble way to choice the solution who can pass the most test cases
+    #     completion_list = dataset[i]["completion_list"]
+    #     test_case_list = dataset[i]["test_case_list"]
+    #     correct_list = []
+    #     # for each completion, we will analysis whether it can pass each test case in test_case_list. Then we will save the number of passed test cases in correct_list Finally, the completion who can pass the most test cases will be selected as the final solution
+    #     for j in range(len(completion_list)):
+    #         correct = 0
+    #         for k in range(len(test_case_list)):
+    #             dataset[i]["full_code"] = test_setup + "\n" + completion_list[j] + "\n" + test_case_list[k]
+    #             result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
+    #             if result["passed"]==True:
+    #                 correct+=1
+    #         correct_list.append(correct)
+    #     max_correct = max(correct_list)
+    #     if max_correct>=1:
+    #         total_correct+=1
+    #     idx = correct_list.index(max_correct)
+    #     if max_correct>=3:
+    #         dataset[i]["completion"] = completion_list[idx]
+    #         _for_completion+=1
+    #     else:
+    #         dataset[i]["completion"] = ""
+    # print("==============Start Agent Testing==============")
+    # print(f"test_report: {total_correct/len(dataset):.2f}")
+    # print(f"test_for_completion: {_for_completion/len(dataset):.2f}")
+    # return dataset
+
+import concurrent.futures
+from tqdm import tqdm
+
+def test_agent_concurrency(dataset, lg):
+    test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
+    total_correct = 0
+    _for_completion = 0
+
+    def process_item(i):
+        if "need_reproduce" in dataset[i].keys() and dataset[i]["need_reproduce"]==False:
+            # dataset[i]["need_reproduce"] = True
+            return dataset[i]["max_correct"], dataset[i]["idx"]
+        completion_list = dataset[i]["completion_list"]
+        test_case_list = dataset[i]["test_case_list"]
+        correct_list = []
+
+        for j in range(len(completion_list)):
+            correct = 0
+            if f"def {dataset[i]['entry_point']}" not in completion_list[j]:
+                correct_list.append(correct)
+                continue
+            for k in range(len(test_case_list)):
+                if f"assert {dataset[i]['entry_point']}(" not in test_case_list[k]:
+                    continue
+                dataset[i]["full_code"] = test_setup + "\n" + completion_list[j] + "\n" + test_case_list[k]
+                result = check_correctness(dataset[i]["task_id"], dataset[i], lg, 3, "./tmp")
+                if result["passed"]:
+                    correct += 1
+            correct_list.append(correct)
+
+        max_correct = max(correct_list)
+        idx = correct_list.index(max_correct)
+
+        return max_correct, idx
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_item, i) for i in range(len(dataset))]
+
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(dataset)):
+            max_correct, idx = future.result()
+            if max_correct >= 3: # GPT-3.5-turbo-1106's test case accuracy is about 67%. So we choice 60% as the bar.
+                i = futures.index(future)
+                dataset[i]["completion"] = dataset[i]["completion_list"][idx]
+                dataset[i]["need_reproduce"] = False
+                dataset[i]["idx"] = idx
+                dataset[i]["max_correct"] = max_correct
+                _for_completion += 1
+            else:
+                i = futures.index(future)
+                dataset[i]["completion"] = dataset[i]["completion_list"][idx]
 
 
-# model_list = ["gpt-3.5-turbo","gpt-3.5-turbo-0301","palm-2-codechat-bison","claude-instant-1"]
-model_list = ["gpt-3.5-turbo"]
-# language = ["js", "java", "go", "cpp","python"]
+    print("==============Start Agent Testing==============")
+    print(f"test_report: {(total_correct/len(dataset)*100):.1f}")
+    print(f"test_for_completion: {(_for_completion/len(dataset)*100):.1f}")
+    return dataset
+
+
+model_list = ["gpt-3.5-turbo-1106"]
 language = ["python"]
 for model in model_list:
     for lg in language:
@@ -319,12 +401,14 @@ for model in model_list:
         with open(path, "r") as f:
             dataset = json.load(f)
         epoch = 5
-        for _ in range(epoch):
+        for current_epoch in range(epoch):
+            dataset = test_agent_concurrency(dataset,lg)
             test_report(dataset,lg)
-            test_agent(dataset,lg)
-            dataset = call_fix_bug(dataset,model,lg)
+            # break
+            dataset = call_fetch_completion_helper(dataset,model,lg)
+            dataset = call_fetch_test_completion_helper(dataset,model,lg)
+            with open(f"./dataset/{model}_{current_epoch}.json", "w") as f:
+                json.dump(dataset, f, indent=4)
+        dataset = test_agent_concurrency(dataset,lg)
         test_report(dataset,lg)
-        test_agent(dataset,lg)
         
-        with open(f"./dataset/{lg}/{model}_{lg}_{epoch}.json", "w") as f:
-            json.dump(dataset, f)

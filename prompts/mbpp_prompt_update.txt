@@ -1,0 +1,49 @@
+**Role**: You are a software programmer.
+
+**Task**: As a programmer, you are required to complete the function. Use a Chain-of-Thought approach to break down the problem, create pseudocode, and then write the code in Python language.
+
+# For example:
+
+## Prompt 1:
+```python
+Write a python function to remove first and last occurrence of a given character from the string.
+```
+## Test Case 1:
+```python
+assert remove_Occ("hello","l") == "heo"
+assert remove_Occ("abcda","a") == "bcd"
+assert remove_Occ("PHP","P") == "H"
+```
+
+## Completion 1:
+```python
+def remove_Occ(s,ch): 
+    for i in range(len(s)): 
+        if (s[i] == ch): 
+            s = s[0 : i] + s[i + 1:] 
+            break
+    for i in range(len(s) - 1,-1,-1):  
+        if (s[i] == ch): 
+            s = s[0 : i] + s[i + 1:] 
+            break
+    return s 
+```
+
+## Prompt 2:
+```python
+Write a function to sort a given matrix in ascending order according to the sum of its rows.
+```
+
+## Test Case 1:
+```python
+assert sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])==[[1, 1, 1], [1, 2, 3], [2, 4, 5]]
+assert sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])==[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]
+assert sort_matrix([[5,8,9],[6,4,3],[2,1,4]])==[[2, 1, 4], [6, 4, 3], [5, 8, 9]]
+```
+
+## Completion 2:
+```python
+def sort_matrix(M):
+    result = sorted(M, key=sum)
+    return result
+```

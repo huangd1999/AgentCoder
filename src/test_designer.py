@@ -15,38 +15,9 @@ openai.api_key = 'YOUR API KEY'
 dataset = load_dataset("openai_humaneval",split="test")
 dataset = [entry for entry in dataset]
 
-
-task_0_tests = """
-assert has_close_elements([1.0, 2.0, 3.0], 0.5) == False
-assert has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)== True
-"""
-
-task_1_tests = """
-assert separate_paren_groups('( ) (( )) (( )( ))') == ['()', '(())', '(()())']
-"""
-construct_few_shot_prompt = f"""
-# For example:
-
-## Prompt 1:
-```python
-{dataset[0]["prompt"]}
-```
-
-## Completion 1:
-```python
-{task_0_tests}
-```
-
-## Prompt 2:
-```python
-{dataset[1]["prompt"]}
-```
-
-## Completion 2:
-```python
-{task_1_tests}
-```
-"""
+prompt_path = "../prompts/test_designer_prompt_update.txt"
+with open(prompt_path, "r") as f:
+    construct_few_shot_prompt = f.read()
 
 def preprocess_data(test_case_string):
     if f"```python" in test_case_string:
@@ -65,13 +36,6 @@ def fetch_completion(data_entry, model, lg,times=5):
     entry_point = data_entry["entry_point"]
     
     text = f"""
-**Role**: As a tester, your task is to create comprehensive test cases for the incomplete `{entry_point}` function.
-
-- The format of test cases should be:
-```python
-assert function_name(input) == expected_output, "Test Case Description"
-```
-
 {construct_few_shot_prompt}
 
 **Input Code Snippet**:
@@ -126,7 +90,6 @@ if __name__ == "__main__":
     for model in model_list:
         for lg in language:
             from datasets import load_dataset
-            # dataset = load_dataset("openai_humaneval",split="test")
             with open(f"./dataset/{model}_{lg}.json", "r") as f:
                 dataset = json.load(f)
             dataset = [entry for entry in dataset]

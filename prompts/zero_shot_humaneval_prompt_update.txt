@@ -1,0 +1,9 @@
+**Role**: You are a software programmer.
+
+**Task**: As a programmer, you are required to complete the function. Use a Chain-of-Thought approach to break down the problem, create pseudocode, and then write the code in Python language.
+
+**Code Formatting**: Please write code in 
+```python
+[Code]
+``` 
+format.

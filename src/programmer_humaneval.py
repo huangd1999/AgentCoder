@@ -15,29 +15,9 @@ openai.api_key = 'YOUR API KEY'
 dataset = load_dataset("openai_humaneval",split="test")
 dataset = [entry for entry in dataset]
 
-construct_few_shot_prompt = f"""
-# For example:
-
-## Prompt 1:
-```python
-{dataset[0]["prompt"]}
-```
-
-## Completion 1:
-```python
-{dataset[0]["canonical_solution"]}
-```
-
-## Prompt 2:
-```python
-{dataset[1]["prompt"]}
-```
-
-## Completion 2:
-```python
-{dataset[1]["canonical_solution"]}
-```
-"""
+prompt_path = "../prompts/humaneval_prompt_update.txt"
+with open(prompt_path, "r") as f:
+    construct_few_shot_prompt = f.read()
 
 def preprocess_data(completion_string):
     if f"```python" in completion_string:
@@ -54,12 +34,6 @@ def fetch_completion(data_entry, model,lg,times = 5):
         return data_entry
     prompt = data_entry["prompt"]
     text = f"""
-**Role**: You are a software programmer.
-
-**Task**: As a programmer, you are required to complete the function. Use a Chain-of-Thought approach to break down the problem, create pseudocode, and then write the code in Python language.
-
-**Code Formatting**: Please write code in ```python\n[Code]\n``` format.
-
 {construct_few_shot_prompt}
 
 **Input Code Snippet**:
@@ -86,7 +60,6 @@ def fetch_completion(data_entry, model,lg,times = 5):
 
             except Exception as e:
                 print(e)
-                print("test")
                 time.sleep(10)
                 completion = ""
             if completion!="":

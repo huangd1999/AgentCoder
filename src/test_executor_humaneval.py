@@ -16,6 +16,8 @@ import os
 import multiprocessing
 import platform
 import signal
+import concurrent.futures
+from tqdm import tqdm
 from tqdm import tqdm
 from programmer_humaneval import call_fetch_completion_helper
 from test_designer import call_fetch_test_completion_helper
@@ -166,116 +168,7 @@ def preprocess_data(task,lg):
     if "assert" in task["prompt"]:
         task["prompt"] = task["prompt"][:task["prompt"].find("assert")]
     return task
-
-def run_tests_orginal(i,problem):
-    global result_original
-    timeout = 2.0
-    # complete_function_code = (
-    #     problem["prompt"] + problem['completion'] + "\n" +
-    #     problem["test"] + "\n" +
-    #     f"check({problem['entry_point']})"
-    # )
-    if f"def {problem['entry_point']}" in problem['completion']:
-        complete_function_code = (
-            problem['completion'] + "\n" +
-            problem["test_case"]
-        )
-    else:
-        complete_function_code = (
-            problem["prompt"] + problem['completion'] + "\n" +
-            problem["test_case"]
-        )
-
-    try:
-        with swallow_io():
-            with time_limit(timeout):
-                exec(complete_function_code, globals())
-        problem["result"] = "pass"
-        result_original+=1
-    except Exception as exc:
-        idx_run_tests_orginal.append(problem["task_id"])
-        # print("run_tests_orginal",problem["task_id"])
-        # print("run_tests_orginal","Error in executing the code: " + str(exc))
-        problem["result"] = "Error in executing the code: " + str(exc)
-        # print(problem["result"])
-        print(problem["task_id"],problem["result"])
-
                 
-    
-def run_tests_canonical_solution(i,problem):
-    global result_canonical_solution
-    timeout = 2.0
-    complete_function_code = (
-        problem["prompt"] + problem['canonical_solution'] + "\n" +
-        problem["test_case"]
-        # "\n" +
-        # f"check({problem['entry_point']})"
-    )
-    try:
-        with swallow_io():
-            with time_limit(timeout):
-                exec(complete_function_code, globals())
-        problem["result"] = "pass"
-        result_canonical_solution+=1
-    except Exception as exc:
-        idx_run_tests_canonical_solution.append(problem["task_id"])
-        # print(problem["task_id"])
-        
-        # problem["result"] = "Error in executing the code: " + str(exc)
-        if "Basic Test Case" in str(exc):
-            print(problem["task_id"],"Error in executing the code: " + str(exc))
-        else:
-            result_canonical_solution+=1
-
-def run_tests_fuzzer(i,problem):
-    global result_fuzzer
-    timeout = 7.0
-
-    complete_function_code = ( problem["prompt"] + problem['completion'] + "\n" + problem["fuzzer_coverage"])
-
-    try:
-        with swallow_io():
-            with time_limit(timeout):
-                exec(complete_function_code, globals())
-        problem["result"] = "pass"
-    except TimeoutException:
-        idx_run_tests_fuzzer.append(problem["task_id"])
-        # print(problem["task_id"])
-        # print("time out")
-        result_fuzzer+=1
-        problem["result"] = "time out"
-    except BaseException as exc:
-        idx_run_tests_fuzzer.append(problem["task_id"])
-        result_fuzzer+=1
-        # print(problem["task_id"])
-        # print("Error in executing the code: " + str(exc))
-        problem["result"] = "Error in executing the code: " + str(exc)
-    
-    return problem
-
-def run_tests_fuzzer_canonical_solution(i,problem):
-    global result_fuzzer_canonical_solution
-    timeout = 7.0
-    complete_function_code = ( problem["prompt"] + problem['canonical_solution'] + "\n" + problem["fuzzer_coverage"])
-    try:
-        with swallow_io():
-            with time_limit(timeout):
-                exec(complete_function_code, globals())
-        problem["result"] = "pass"
-    except TimeoutException:
-        idx_run_tests_fuzzer_canonical_solution.append(problem["task_id"])
-        # print(problem["task_id"])
-        # print("time out")
-        result_fuzzer_canonical_solution+=1
-        problem["result"] = "time out"
-    except BaseException as exc:
-        idx_run_tests_fuzzer_canonical_solution.append(problem["task_id"])
-        result_fuzzer_canonical_solution+=1
-        # print(problem["task_id"])
-        # print("Error in executing the code: " + str(exc))
-        problem["result"] = "Error in executing the code: " + str(exc)
-
-
 
 def test_report(dataset,lg):
     correct = 0
@@ -292,51 +185,6 @@ def test_report(dataset,lg):
     print(f"test_report: {(correct/len(dataset)*100):.1f}")
 
 
-
-    #     dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=False)
-    #     result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
-    #     if result["passed"]==True:
-    #         correct+=1
-    # print("==============Start Report Testing==============")
-    # print("test_report",correct)
-    
-# def test_agent(dataset,lg):
-    # correct = 0
-    # test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
-    # total_correct = 0
-    # _for_completion = 0
-    # for i in tqdm(range(len(dataset))):
-        
-    #     #dataset[i]["completion"] contains five different solutions, and dataset[i]["test_case"] also have five different test cases
-    #     # we want to use ensemble way to choice the solution who can pass the most test cases
-    #     completion_list = dataset[i]["completion_list"]
-    #     test_case_list = dataset[i]["test_case_list"]
-    #     correct_list = []
-    #     # for each completion, we will analysis whether it can pass each test case in test_case_list. Then we will save the number of passed test cases in correct_list Finally, the completion who can pass the most test cases will be selected as the final solution
-    #     for j in range(len(completion_list)):
-    #         correct = 0
-    #         for k in range(len(test_case_list)):
-    #             dataset[i]["full_code"] = test_setup + "\n" + completion_list[j] + "\n" + test_case_list[k]
-    #             result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
-    #             if result["passed"]==True:
-    #                 correct+=1
-    #         correct_list.append(correct)
-    #     max_correct = max(correct_list)
-    #     if max_correct>=1:
-    #         total_correct+=1
-    #     idx = correct_list.index(max_correct)
-    #     if max_correct>=3:
-    #         dataset[i]["completion"] = completion_list[idx]
-    #         _for_completion+=1
-    #     else:
-    #         dataset[i]["completion"] = ""
-    # print("==============Start Agent Testing==============")
-    # print(f"test_report: {total_correct/len(dataset):.2f}")
-    # print(f"test_for_completion: {_for_completion/len(dataset):.2f}")
-    # return dataset
-
-import concurrent.futures
-from tqdm import tqdm
 
 def test_agent_concurrency(dataset, lg):
     test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
@@ -393,22 +241,21 @@ def test_agent_concurrency(dataset, lg):
     return dataset
 
 
-model_list = ["gpt-3.5-turbo-1106"]
-language = ["python"]
-for model in model_list:
-    for lg in language:
-        path = f"./dataset/{model}_{lg}.json"
-        with open(path, "r") as f:
-            dataset = json.load(f)
-        epoch = 5
-        for current_epoch in range(epoch):
+if __name__ == "__main__":
+    model_list = ["gpt-3.5-turbo-1106"]
+    language = ["python"]
+    for model in model_list:
+        for lg in language:
+            path = f"./dataset/{model}_{lg}.json"
+            with open(path, "r") as f:
+                dataset = json.load(f)
+            epoch = 5
+            for current_epoch in range(epoch):
+                dataset = test_agent_concurrency(dataset,lg)
+                test_report(dataset,lg)
+                dataset = call_fetch_completion_helper(dataset,model,lg)
+                dataset = call_fetch_test_completion_helper(dataset,model,lg)
+                with open(f"./dataset/{model}_{current_epoch}.json", "w") as f:
+                    json.dump(dataset, f, indent=4)
             dataset = test_agent_concurrency(dataset,lg)
             test_report(dataset,lg)
-            # break
-            dataset = call_fetch_completion_helper(dataset,model,lg)
-            dataset = call_fetch_test_completion_helper(dataset,model,lg)
-            with open(f"./dataset/{model}_{current_epoch}.json", "w") as f:
-                json.dump(dataset, f, indent=4)
-        dataset = test_agent_concurrency(dataset,lg)
-        test_report(dataset,lg)
-        

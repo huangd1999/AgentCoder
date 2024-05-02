@@ -150,72 +150,26 @@ def test_agent(dataset,lg):
     print("============Start Agent Testing=================")
     print("test_report",correct)
     return dataset
-def test_canonical_solution(dataset,lg):
-    correct = 0
-    mis_answered = 0
-    correct_answered = 0
-    for i in tqdm(range(len(dataset))):
-        # if "agent_passed" in dataset[i].keys():
-        #     if ("canonical_passed" in dataset[i].keys()) and dataset[i]["canonical_passed"]:
-        #         correct+=1
-        #         continue
-        #     elif ("canonical_passed" in dataset[i].keys()) and not dataset[i]["canonical_passed"]: 
-        #         continue
-        try:
 
-            dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=True,canonical_solution=True)
-            dataset[i]["full_code"] = dataset[i]["full_code"]+"\n"+dataset[i]["entry_point_test_case"]
-            result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
-            if result["passed"]==True:
-                correct+=1
-                # if dataset[i]["agent_passed"] == True and dataset[i]["report_passed"] == False:
-                #     mis_answered+=1
-                # if dataset[i]["agent_passed"] == False and dataset[i]["report_passed"] == True:
-                #     correct_answered+=1
-            
-            # dataset[i]["canonical_result"] = result["result"]
-            # dataset[i]["canonical_passed"] = result["passed"]
-        except Exception as e:
-            pass
-    print("============Start canonical Testing=================")
-    print("test_canonical",correct)
-    print("mis_answered",mis_answered)
-    print("correct_answered",correct_answered)
-    return correct,dataset
+if __name__ == "__main__":
+    model_list = ["gpt-3.5-turbo-1106"]
+    language = ["python"]
 
-# model_list = ["gpt-3.5-turbo","gpt-3.5-turbo-0301","palm-2-codechat-bison","claude-instant-1"]
-model_list = ["gpt-3.5-turbo"]
-# language = ["js", "java", "go", "cpp","python"]
-language = ["python"]
-
-# # Multi-Agent collaboration improves code snippets' correctness score.
-
-# for model_name in model_list:
-#     for lg in language:
-#         path = f"./dataset/zero_shot_{model_name}_mbpp.json"
-#         with open(path, "r") as f:
-#             dataset = json.load(f)
-#         epoch = 5
-#         for current_epoch in range(epoch):
-#             print(lg,current_epoch)
-#             test_report(dataset,lg)
-#             test_agent(dataset,lg)
-#             dataset = call_completion(dataset,model_name,lg)
-#             with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
-#                 json.dump(dataset, f, indent=4)
-#         with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
-#             json.dump(dataset, f, indent=4)
-
-# calculate pass@1
-for model_name in model_list:
-    for lg in language:
-        epoch = 5
-        for current_epoch in range(epoch):
+    for model_name in model_list:
+        for lg in language:
             path = f"./dataset/zero_shot_{model_name}_mbpp.json"
             with open(path, "r") as f:
                 dataset = json.load(f)
-            print(lg,current_epoch)
-            test_report(dataset,lg)
-            test_agent(dataset,lg)
+            epoch = 5
+            for current_epoch in range(epoch):
+                print(lg,current_epoch)
+                test_report(dataset,lg)
+                test_agent(dataset,lg)
+                dataset = call_completion(dataset,model_name,lg)
+                with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
+                    json.dump(dataset, f, indent=4)
+            with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
+                json.dump(dataset, f, indent=4)
+
 
 

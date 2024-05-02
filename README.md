@@ -1,30 +1,68 @@
-To execute AgentCoder, you should have API key from OpenAI or other similar third-party. AgentCoder is done with AIOHUB (https://api.aiohub.org/) since it provide funding for AgentCoder.
+# AgentCoder: Multiagent-Code Generation Framework
 
-You should add you API key in agent_1 and agent_2 py file.
+AgentCoder is a novel multiagent-code generation framework that leverages the power of large language models (LLMs) to enhance the effectiveness of code generation. The framework consists of three specialized agents: the programmer agent, the test designer agent, and the test executor agent. These agents collaborate to generate high-quality code snippets, design comprehensive test cases, and ensure the correctness of the generated code through an iterative feedback loop.
 
-```
-openai.api_base = "https://api.aiohub.org/v1"
-openai.api_key = 'API Here'
-```
+## Key Features
 
-Then, for code generation, you can just directly run the code with:
-```
-python programmer_humaneval.py
-python programmer_mbpp.py
-```
-to generate code that will be used to assistant test case generation.
+- **Multiagent Collaboration**: AgentCoder utilizes a multiagent framework where each agent specializes in a specific task, leading to improved code generation effectiveness.
+- **Independent Test Case Generation**: The test designer agent generates diverse and objective test cases independently, ensuring comprehensive testing of the generated code.
+- **Iterative Code Refinement**: The test executor agent executes the generated test cases against the code and provides feedback to the programmer agent for iterative code refinement.
+- **Modularity and Scalability**: The modular structure of AgentCoder allows for easy integration with advanced models and future enhancements, ensuring adaptability in the evolving landscape of code generation.
 
-Then test case generation:
+## Installation
+
+To use AgentCoder, you need to have an API key from OpenAI or other similar third-party providers.
+1. Clone the AgentCoder repository:
+   ```
+   git clone https://github.com/your-username/AgentCoder.git
+   ```
+
+2. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Add your API key in the `programmer_[humaneval/mbpp].py` and `test_designer.py` files:
+   ```python
+   openai.api_key = 'YOUR_API_KEY'
+   ```
+
+## Usage
+
+### Code Generation
+
+To generate code snippets, run the following commands:
+```
+python programmer_[humaneval/mbpp].py
+```
+These scripts will generate code snippets that will be used for test case generation.
+
+### Test Case Generation
+
+To generate test cases, run the following command:
 ```
 python test_designer.py
 ```
+This script will generate diverse and comprehensive test cases based on the coding requirements.
 
-Finally, self-optimization process:
+### Self-Optimization Process
 
+To perform the self-optimization process, run the following commands:
 ```
-python test_executor_humaneval.py
-python test_executor_mbpp.py
+python test_executor_[humaneval/mbpp].py
 ```
+These scripts will execute the generated test cases against the code and provide feedback to the programmer agent for iterative code refinement.
 
-Since MBPP's format have few difference with HumanEval.
-So for agent_1 and agent_3 we provide another files for execution. While agent_2 is same as HumanEval
+Note: The MBPP dataset has a slightly different format compared to HumanEval. Therefore, separate files (`test_executor_mbpp.py` and `programmer_mbpp.py`) are provided for execution, while `test_designer.py` remains the same for both datasets.
+
+## Contributions
+
+Contributions to AgentCoder are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request on the GitHub repository.
+
+## License
+
+AgentCoder is released under the [MIT License](LICENSE).
+
+## Acknowledgments
+
+We would like to thank AIOHUB for providing funding and support for the development of AgentCoder. We also acknowledge the contributions of the open-source community and the developers of the large language models used in this project.

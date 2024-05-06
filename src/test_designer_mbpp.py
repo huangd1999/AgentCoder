@@ -9,13 +9,14 @@ import concurrent.futures
 import time
 from datasets import load_dataset
 # Setting API parameters
-openai.api_base = "https://api.aiohub.org/v1"
-openai.api_key = 'YOUR API KEY'
+openai.api_key = 'API_KEY'
 
-dataset = load_dataset("openai_humaneval",split="test")
+dataset = load_dataset("evalplus/mbppplus",split="test")
 dataset = [entry for entry in dataset]
+task_0_tests = "\n".join(dataset[0]["test_list"])
+task_1_tests = "\n".join(dataset[1]["test_list"])
 
-prompt_path = "../prompts/test_designer_prompt_update.txt"
+prompt_path = "./prompts/test_designer_mbpp_prompt_update.txt"
 with open(prompt_path, "r") as f:
     construct_few_shot_prompt = f.read()
 
@@ -23,8 +24,6 @@ def preprocess_data(test_case_string):
     if f"```python" in test_case_string:
         test_case_string = test_case_string[test_case_string.find(f"```python")+len(f"```python"):]
         test_case_string = test_case_string[:test_case_string.find("```")]
-    else:
-        print("Error: No code block found")
     return test_case_string
 
 # Function to fetch completion
@@ -33,8 +32,9 @@ def fetch_completion(data_entry, model, lg,times=5):
     if "need_reproduce" in data_entry.keys() and data_entry["need_reproduce"]==False:
         return data_entry
     prompt = data_entry["prompt"]
-    entry_point = data_entry["entry_point"]
-    
+    test_case_0 = data_entry["test_list"][0]
+    function_name = test_case_0.split("(")[0].split(" ")[-1]
+
     text = f"""
 {construct_few_shot_prompt}
 
@@ -48,7 +48,7 @@ def fetch_completion(data_entry, model, lg,times=5):
         while True:
             try:
                 completions = openai.ChatCompletion.create(
-                    model=model,
+                    model="gpt-3.5-turbo-1106",
                     stream=False,
                     messages=[
                 {"role": "system", "content": "You are a code developer assistant."},
@@ -84,13 +84,12 @@ def call_fetch_test_completion_helper(dataset, model,lg):
 
 
 if __name__ == "__main__":
-
-    model_list = ["gpt-3.5-turbo-1106"]
+    model_list = ["gpt-3.5-turbo-0301"]
     language = ["python"]
     for model in model_list:
         for lg in language:
             from datasets import load_dataset
-            with open(f"./dataset/{model}_{lg}.json", "r") as f:
+            with open(f"./dataset/{model}_mbpp.json", "r") as f:
                 dataset = json.load(f)
             dataset = [entry for entry in dataset]
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -104,5 +103,5 @@ if __name__ == "__main__":
                     except Exception as e:
                         print(repr(e))
 
-            with open(f"./dataset/{model}_{lg}.json", "w") as f:
+            with open(f"./dataset/{model}_mbpp.json", "w") as f:
                 json.dump(dataset, f, indent=4)

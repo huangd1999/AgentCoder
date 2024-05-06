@@ -22,7 +22,7 @@ To use AgentCoder, you need to have an API key from OpenAI or other similar thir
    pip install -r requirements.txt
    ```
 
-3. Add your API key in the `programmer_[humaneval/mbpp].py` and `test_designer.py` files:
+3. Add your API key in the `programmer_[humaneval/mbpp].py` and `test_designer_[humaneval/mbpp].py` files:
    ```python
    openai.api_key = 'YOUR_API_KEY'
    ```
@@ -41,7 +41,7 @@ These scripts will generate code snippets that will be used for test case genera
 
 To generate test cases, run the following command:
 ```
-python test_designer.py
+python test_designer_[humaneval/mbpp].py
 ```
 This script will generate diverse and comprehensive test cases based on the coding requirements.
 
@@ -53,7 +53,6 @@ python test_executor_[humaneval/mbpp].py
 ```
 These scripts will execute the generated test cases against the code and provide feedback to the programmer agent for iterative code refinement.
 
-Note: The MBPP dataset has a slightly different format compared to HumanEval. Therefore, separate files (`test_executor_mbpp.py` and `programmer_mbpp.py`) are provided for execution, while `test_designer.py` remains the same for both datasets.
 
 ## Contributions
 

@@ -15,6 +15,8 @@ To use AgentCoder, you need to have an API key from OpenAI or other similar thir
 1. Clone the AgentCoder repository:
    ```
    git clone https://github.com/your-username/AgentCoder.git
+   cd AgentCoder
+   git clone https://github.com/THUDM/CodeGeeX
    ```
 
 2. Install the required dependencies:

@@ -27,6 +27,7 @@ To use AgentCoder, you need to have an API key from OpenAI or other similar thir
 3. Add your API key in the `programmer_[humaneval/mbpp].py` and `test_designer_[humaneval/mbpp].py` files:
    ```python
    openai.api_key = 'YOUR_API_KEY'
+   # openai.api_base = "https:// ... aiohub.org endpoint ..." # remove this line if you don't intend to trust and use this specific service
    ```
 
 ## Usage

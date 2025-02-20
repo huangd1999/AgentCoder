@@ -20,7 +20,7 @@ import concurrent.futures
 from tqdm import tqdm
 from tqdm import tqdm
 from programmer_humaneval import call_fetch_completion_helper
-from test_designer import call_fetch_test_completion_helper
+from test_designer_humaneval import call_fetch_test_completion_helper
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile

@@ -1,0 +1,2 @@
+datasets==3.3.1
+openai==0.28.0

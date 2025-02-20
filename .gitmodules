@@ -1,0 +1,3 @@
+[submodule "CodeGeeX"]
+	path = CodeGeeX
+	url = https://github.com/THUDM/CodeGeeX.git

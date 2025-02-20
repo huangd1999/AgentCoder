@@ -11,7 +11,7 @@ import concurrent.futures
 openai.api_base = "https://api.aiohub.org/v1"
 openai.api_key = 'API_KEY'
 
-prompt_path = "../prompts/mbpp_prompt_update.txt"
+prompt_path = "./prompts/mbpp_prompt_update.txt"
 with open(prompt_path, "r") as f:
     construct_few_shot_prompt = f.read()
 

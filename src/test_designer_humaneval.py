@@ -8,8 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 import time
 from datasets import load_dataset
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Setting API parameters
-openai.api_key = 'API_KEY'
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 dataset = load_dataset("openai_humaneval",split="test")
 dataset = [entry for entry in dataset]

@@ -6,10 +6,13 @@ import copy
 import openai
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
+from dotenv import load_dotenv
+
+load_dotenv
 
 # Setting API parameters
 openai.api_base = "https://api.aiohub.org/v1"
-openai.api_key = 'API_KEY'
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 prompt_path = "./prompts/mbpp_prompt_update.txt"
 with open(prompt_path, "r") as f:

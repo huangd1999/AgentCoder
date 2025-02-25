@@ -8,33 +8,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import inspect
 import numpy as np
 import sys
-sys.path.append('./CodeGeeX/')
+sys.path.append('../CodeGeeX/')
 import contextlib
-import faulthandler
 import io
-import os
-import multiprocessing
-import platform
 import signal
 import concurrent.futures
 from tqdm import tqdm
 from tqdm import tqdm
-from programmer_humaneval import call_fetch_completion_helper
-from test_designer import call_fetch_test_completion_helper
-from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
+from programmer_humaneval import call_fix_bug
+from codegeex.benchmark.utils import IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile
-correct_doctest = 0
-correct_before_doctest = 0
-correct_after_doctest = 0
-result_original = 0
-result_canonical_solution = 0
-result_fuzzer = 0
-result_fuzzer_canonical_solution = 0
-idx_run_tests_orginal = []
-idx_run_tests_canonical_solution = []
-idx_run_tests_fuzzer = []
-idx_run_tests_fuzzer_canonical_solution = []
 
 language = ["python","cpp","js","go","js"]
 
@@ -169,93 +153,57 @@ def preprocess_data(task,lg):
         task["prompt"] = task["prompt"][:task["prompt"].find("assert")]
     return task
                 
-
 def test_report(dataset,lg):
     correct = 0
-    test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
     for i in tqdm(range(len(dataset))):
-        try:
-            with swallow_io():
-                with time_limit(2.0):
-                    exec(test_setup + "\n" + dataset[i]["completion"] + "\n" + dataset[i]["test"] + "\n" + f"check({dataset[i]['entry_point']})")
-                correct+=1
-        except Exception as exc:
-            pass
+        dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=False)
+        result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
+        if result["passed"]==True:
+            correct+=1
+        dataset[i]["report_passed"] = result["passed"]
+        dataset[i]["report_result"] = result["result"]
     print("==============Start Report Testing==============")
-    print(f"test_report: {(correct/len(dataset)*100):.1f}")
-
-
-
-def test_agent_concurrency(dataset, lg):
-    test_setup = "\n".join(IMPORT_HELPER["python"]) + "\n"
-    total_correct = 0
-    _for_completion = 0
-
-    def process_item(i):
-        if "need_reproduce" in dataset[i].keys() and dataset[i]["need_reproduce"]==False:
-            # dataset[i]["need_reproduce"] = True
-            return dataset[i]["max_correct"], dataset[i]["idx"]
-        completion_list = dataset[i]["completion_list"]
-        test_case_list = dataset[i]["test_case_list"]
-        correct_list = []
-
-        for j in range(len(completion_list)):
-            correct = 0
-            if f"def {dataset[i]['entry_point']}" not in completion_list[j]:
-                correct_list.append(correct)
-                continue
-            for k in range(len(test_case_list)):
-                if f"assert {dataset[i]['entry_point']}(" not in test_case_list[k]:
-                    continue
-                dataset[i]["full_code"] = test_setup + "\n" + completion_list[j] + "\n" + test_case_list[k]
-                result = check_correctness(dataset[i]["task_id"], dataset[i], lg, 3, "./tmp")
-                if result["passed"]:
-                    correct += 1
-            correct_list.append(correct)
-
-        max_correct = max(correct_list)
-        idx = correct_list.index(max_correct)
-
-        return max_correct, idx
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_item, i) for i in range(len(dataset))]
-
-        for future in tqdm(concurrent.futures.as_completed(futures), total=len(dataset)):
-            max_correct, idx = future.result()
-            if max_correct >= 3: # GPT-3.5-turbo-1106's test case accuracy is about 67%. So we choice 60% as the bar.
-                i = futures.index(future)
-                dataset[i]["completion"] = dataset[i]["completion_list"][idx]
-                dataset[i]["need_reproduce"] = False
-                dataset[i]["idx"] = idx
-                dataset[i]["max_correct"] = max_correct
-                _for_completion += 1
+    correct_percent = correct/len(dataset)*100
+    print(f"test_report, {correct_percent:0.2f}")
+    return dataset
+    
+def test_agent(dataset,lg):
+    correct = 0
+    for i in tqdm(range(len(dataset))):
+        test_case = [test for test in dataset[i]["test_case"].split("\n") if f"assert {dataset[i]['entry_point']}" in test]
+        incorrect_tests = []
+        correct_tests = []
+        results = ""
+        for test in test_case:
+            dataset[i]["test_case"] = test
+            dataset[i]["full_code"] = process_humaneval_test(dataset[i], dataset, example_test=False,language=lg,test_case=False)
+            result = check_correctness(dataset[i]["task_id"],dataset[i],lg,5,"./tmp")
+            if result["passed"]==True:
+                correct+=1
             else:
-                i = futures.index(future)
-                dataset[i]["completion"] = dataset[i]["completion_list"][idx]
-
-
-    print("==============Start Agent Testing==============")
-    print(f"test_report: {(total_correct/len(dataset)*100):.1f}")
-    print(f"test_for_completion: {(_for_completion/len(dataset)*100):.1f}")
+                incorrect_tests.append(test)
+            results += f"{test} -> {result['result']}\n"
+        dataset[i]["incorrect_tests"] = "\n".join(incorrect_tests)
+        dataset[i]["correct_tests"] = "\n".join(correct_tests)
+        dataset[i]["result"] = results
+    print("============Start Agent Testing=================")
+    print("test_report",correct)
     return dataset
 
 
 if __name__ == "__main__":
-    model_list = ["gpt-3.5-turbo-1106"]
+    model_list = ["gpt-3.5-turbo"]
     language = ["python"]
     for model in model_list:
         for lg in language:
-            path = f"./dataset/{model}_{lg}.json"
+            path = f"../dataset/humaneval_{model}_{lg}.json"
             with open(path, "r") as f:
                 dataset = json.load(f)
             epoch = 5
             for current_epoch in range(epoch):
-                dataset = test_agent_concurrency(dataset,lg)
-                test_report(dataset,lg)
-                dataset = call_fetch_completion_helper(dataset,model,lg)
-                dataset = call_fetch_test_completion_helper(dataset,model,lg)
-                with open(f"./dataset/{model}_{current_epoch}.json", "w") as f:
+                dataset = test_agent(dataset,lg)
+                dataset = call_fix_bug(dataset,model,lg)
+                with open(f"../dataset/humaneval_{model}_{current_epoch}.json", "w") as f:
                     json.dump(dataset, f, indent=4)
-            dataset = test_agent_concurrency(dataset,lg)
+            dataset = test_agent(dataset,lg)
             test_report(dataset,lg)

@@ -21,17 +21,6 @@ from programmer_mbpp import fix_bug,call_fix_bug,call_completion,single_agent_he
 from codegeex.benchmark.utils import read_dataset, IMPORT_HELPER
 from codegeex.benchmark.execution import check_correctness
 import tempfile
-correct_doctest = 0
-correct_before_doctest = 0
-correct_after_doctest = 0
-result_original = 0
-result_canonical_solution = 0
-result_fuzzer = 0
-result_fuzzer_canonical_solution = 0
-idx_run_tests_orginal = []
-idx_run_tests_canonical_solution = []
-idx_run_tests_fuzzer = []
-idx_run_tests_fuzzer_canonical_solution = []
 
 language = ["python","cpp","js","go","js"]
 
@@ -77,11 +66,6 @@ def preprocess_data(task,lg):
     return task
 
 
-    
-
-
-
-
 class TimeoutException(Exception):
     pass
 class WriteOnlyStringIO(io.StringIO):
@@ -121,7 +105,6 @@ def time_limit(seconds: float):
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
 
-# def check_correctness_mbpp(code_string):
 
 
 def test_report(dataset,lg):
@@ -168,8 +151,5 @@ if __name__ == "__main__":
                 dataset = call_completion(dataset,model_name,lg)
                 with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp.json", "w") as f:
                     json.dump(dataset, f, indent=4)
-            with open(f"./dataset/zero_shot_{model_name}_{current_epoch}_mbpp_total.json", "w") as f:
-                json.dump(dataset, f, indent=4)
-
 
 

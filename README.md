@@ -1,4 +1,4 @@
-# AgentCoder: Multiagent-Code Generation Framework
+# AgentCoder: multi-agent code generation framework
 
 AgentCoder is a novel multiagent-code generation framework that leverages the power of large language models (LLMs) to enhance the effectiveness of code generation. The framework consists of three specialized agents: the programmer agent, the test designer agent, and the test executor agent. These agents collaborate to generate high-quality code snippets, design comprehensive test cases, and ensure the correctness of the generated code through an iterative feedback loop.
 
